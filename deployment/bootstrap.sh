@@ -1,30 +1,28 @@
 #!/bin/bash
 
-# Updating system and install dependencies
-sudo apt update -y
-sudo apt install -y openjdk-11-jre-headless python3 python3-pip wget unzip git
+exec > /home/ubuntu/bootstrap.log 2>&1
+set -e
 
-# Installing Kafka
-cd /opt
-sudo wget https://downloads.apache.org/kafka/3.5.1/kafka_2.13-3.5.1.tgz
-sudo tar -xzf kafka_2.13-3.5.1.tgz
-sudo mv kafka_2.13-3.5.1 kafka
-cd kafka
+# Install Docker and Docker Compose
+sudo apt update
+sudo apt install -y docker.io docker-compose python3 python3-pip git
 
-# Start Zookeeper and Kafka as background daemons
-bin/zookeeper-server-start.sh -daemon config/zookeeper.properties
-sleep 5
-bin/kafka-server-start.sh -daemon config/server.properties
+# Enable Docker for the current user
+sudo usermod -aG docker ubuntu
 
-# Clone your GitHub repo (replace this URL)
+# Clone your project repo
 cd /home/ubuntu
-git clone https://github.com/sanjeevmax6/quant-dev-trial-sanjeev.git
+git clone https://github.com/YOUR_USERNAME/quant-dev-trial-sanjeev.git
 cd quant-dev-trial-sanjeev
 
 # Install Python requirements
 pip3 install -r requirements.txt
 
-# Start Kafka producer and backtest
-python3 kafka_producer.py &
-sleep 2
-python3 backtest.py > output.json
+# Pull Kafka + Zookeeper containers
+docker-compose pull
+
+echo "Bootstrap complete. To test Kafka, run:"
+echo "cd ~/quant-dev-trial-sanjeev"
+echo "docker-compose up -d"
+echo "python3 kafka_producer.py"
+echo "python3 backtest.py > output.json"
