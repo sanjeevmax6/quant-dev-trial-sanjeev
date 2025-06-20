@@ -1,2 +1,3 @@
 l1_day.csv
 venv/*
+__pycache__/*
