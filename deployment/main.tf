@@ -60,19 +60,6 @@ resource "null_resource" "upload_csv" {
     }
   }
 
-  provisioner "remote-exec" {
-    inline = [
-      "sudo mv /home/ubuntu/l1_day.csv /home/ubuntu/quant-dev-trial-sanjeev/l1_day.csv",
-      "sudo chown ubuntu:ubuntu /home/ubuntu/quant-dev-trial-sanjeev/l1_day.csv"
-    ]
-
-    connection {
-      type        = "ssh"
-      user        = "ubuntu"
-      host        = aws_instance.quant_instance.public_ip
-      private_key = file(var.private_key_path)
-    }
-  }
-
   depends_on = [aws_instance.quant_instance]
 }
+

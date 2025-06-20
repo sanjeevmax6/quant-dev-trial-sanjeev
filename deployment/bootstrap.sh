@@ -36,6 +36,14 @@ cd /home/ubuntu
 git clone https://github.com/sanjeevmax6/quant-dev-trial-sanjeev.git
 sudo chown -R ubuntu:ubuntu quant-dev-trial-sanjeev
 
+if [ -f /home/ubuntu/l1_day.csv ]; then
+  mv /home/ubuntu/l1_day.csv /home/ubuntu/quant-dev-trial-sanjeev/l1_day.csv
+  chown ubuntu:ubuntu /home/ubuntu/quant-dev-trial-sanjeev/l1_day.csv
+  echo "CSV file moved into repo folder."
+else
+  echo "CSV file not found at boot time. You can manually move it later."
+fi
+
 cd quant-dev-trial-sanjeev
 pip3 install -r requirements.txt
 
