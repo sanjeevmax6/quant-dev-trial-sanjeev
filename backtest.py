@@ -10,15 +10,14 @@ TOPIC = "mock_l1_stream"
 ORDER_SIZE = 5000
 BOOTSTRAP_SERVERS = 'localhost:9092'
 
-# Cont-Kukanov allocator parameters
-lambda_over_values = [0.2, 0.4, 0.6]
-lambda_under_values = [0.2, 0.4, 0.6]
-theta_queue_values = [0.1, 0.3, 0.5]
+# Cont-Kukanov allocator parameters - expanded search space
+lambda_over_values = [0.1, 0.3, 0.5, 0.7]
+lambda_under_values = [0.1, 0.3, 0.5, 0.7]
+theta_queue_values = [0.05, 0.1, 0.3, 0.5]
 
 # Venue structure: ask price, ask size, fee, rebate
 Venue = namedtuple("Venue", ["ask", "ask_size", "fee", "rebate"])
 
-# Kafka consumer as a function to run each baselines
 def load_all_snapshots():
     consumer = KafkaConsumer(
         TOPIC,
@@ -64,10 +63,10 @@ def load_all_snapshots():
 
 
 def calculate_savings(base, opt):
+    if base == 0:
+        return 0
     return round((base - opt) / base * 10000, 2)
 
-
-print("Consuming messages from Kafka...")
 
 def grid_search(snapshots_by_ts):
     best_config = None
@@ -95,146 +94,148 @@ def grid_search(snapshots_by_ts):
 
     return best_config, best_result
 
+
 def baseline_best_ask(snapshots_by_ts):
     remaining = ORDER_SIZE
     total_cash = 0
     total_filled = 0
-    previous_ts = None
-    current_batch = []
 
     for ts, venue_list in snapshots_by_ts.items():
-        if previous_ts is None:
-            previous_ts = ts
-
-        if ts != previous_ts:
-            current_batch.sort(key=lambda v: v.ask)
-            for v in current_batch:
-                fill = min(v.ask_size, remaining)
-                total_cash += fill * (v.ask + v.fee)
-                total_filled += fill
-                remaining -= fill
-                if remaining <= 0:
-                    break
+        if remaining <= 0:
+            break
+            
+        # Sort venues by ask price (cheapest first)
+        sorted_venues = sorted(venue_list, key=lambda v: v.ask)
+        
+        for venue in sorted_venues:
             if remaining <= 0:
                 break
-            current_batch.clear()
-
-        previous_ts = ts
-        current_batch.extend(venue_list)
+                
+            fill = min(venue.ask_size, remaining)
+            if fill > 0:
+                total_cash += fill * (venue.ask + venue.fee)
+                total_filled += fill
+                remaining -= fill
 
     avg_price = total_cash / total_filled if total_filled > 0 else 0
     return round(total_cash, 2), round(avg_price, 4)
+
 
 def baseline_twap(snapshots_by_ts):
     remaining = ORDER_SIZE
     total_cash = 0
     total_filled = 0
-    previous_ts = None
-    current_batch = []
-    snapshots_processed = 0
-    max_snapshots = 10  # Spreading evenly across 10 timestamps
-
-    for ts, venue_list in snapshots_by_ts.items():
-        if previous_ts is None:
-            previous_ts = ts
-
-        if ts != previous_ts:
-            snapshots_processed += 1
-            slice_size = ORDER_SIZE // max_snapshots
-            filled_in_snapshot = 0
-
-            current_batch.sort(key=lambda v: v.ask)  # prioritizing cheaper venues
-            for v in current_batch:
-                fill = min(v.ask_size, slice_size - filled_in_snapshot)
-                total_cash += fill * (v.ask + v.fee)
+    
+    timestamps = list(snapshots_by_ts.keys())
+    if not timestamps:
+        return 0, 0
+    
+    # Divide order across available timestamps
+    shares_per_timestamp = ORDER_SIZE // len(timestamps)
+    extra_shares = ORDER_SIZE % len(timestamps)
+    
+    for i, (ts, venue_list) in enumerate(snapshots_by_ts.items()):
+        if remaining <= 0:
+            break
+            
+        # Calculate target shares for this timestamp
+        target_shares = shares_per_timestamp
+        if i < extra_shares:  # distribute remainder across first few timestamps
+            target_shares += 1
+            
+        target_shares = min(target_shares, remaining)
+        
+        # Sort venues by price and fill greedily within this timestamp
+        sorted_venues = sorted(venue_list, key=lambda v: v.ask)
+        timestamp_filled = 0
+        
+        for venue in sorted_venues:
+            if timestamp_filled >= target_shares:
+                break
+                
+            fill = min(venue.ask_size, target_shares - timestamp_filled)
+            if fill > 0:
+                total_cash += fill * (venue.ask + venue.fee)
                 total_filled += fill
                 remaining -= fill
-                filled_in_snapshot += fill
-                if filled_in_snapshot >= slice_size:
-                    break
-
-            current_batch.clear()
-            if snapshots_processed >= max_snapshots or remaining <= 0:
-                break
-
-        previous_ts = ts
-        current_batch.extend(venue_list)
+                timestamp_filled += fill
 
     avg_price = total_cash / total_filled if total_filled > 0 else 0
     return round(total_cash, 2), round(avg_price, 4)
+
 
 def baseline_vwap(snapshots_by_ts):
     remaining = ORDER_SIZE
     total_cash = 0
     total_filled = 0
-    previous_ts = None
-    current_batch = []
 
     for ts, venue_list in snapshots_by_ts.items():
-        if previous_ts is None:
-            previous_ts = ts
-
-        if ts != previous_ts:
-            total_sz = sum(v.ask_size for v in current_batch)
-            if total_sz == 0:
-                current_batch.clear()
-                previous_ts = ts
-                continue
-
-            for v in current_batch:
-                share = (v.ask_size / total_sz) * remaining
-                fill = min(v.ask_size, int(share))
-                total_cash += fill * (v.ask + v.fee)
-                total_filled += fill
-                remaining -= fill
-                if remaining <= 0:
-                    break
-
-            current_batch.clear()
+        if remaining <= 0:
+            break
+            
+        # Calculate total available size across all venues
+        total_available = sum(v.ask_size for v in venue_list)
+        if total_available == 0:
+            continue
+            
+        # Allocate proportionally to available size, but fill at each venue's price
+        for venue in venue_list:
             if remaining <= 0:
                 break
-
-        previous_ts = ts
-        current_batch.extend(venue_list)
+                
+            # Calculate proportional allocation
+            proportion = venue.ask_size / total_available
+            target_fill = min(int(proportion * remaining), venue.ask_size)
+            
+            if target_fill > 0:
+                total_cash += target_fill * (venue.ask + venue.fee)
+                total_filled += target_fill
+                remaining -= target_fill
 
     avg_price = total_cash / total_filled if total_filled > 0 else 0
     return round(total_cash, 2), round(avg_price, 4)
 
 
-def run_sor(snapshots_by_ts, λ_over, λ_under, θ_queue):    
-    previous_ts = None
-    current_batch = []
+def run_sor(snapshots_by_ts, λ_over, λ_under, θ_queue):
     total_cash = 0
     total_filled = 0
     remaining = ORDER_SIZE
 
     for ts, venue_list in snapshots_by_ts.items():
-        if previous_ts is None:
-            previous_ts = ts
+        if remaining <= 0:
+            break
 
-        if ts != previous_ts:
-            print(f"Processing {previous_ts} with {len(current_batch)} venues")
-
-            alloc, _ = greedy_allocate(remaining, current_batch.copy(), λ_over, λ_under, θ_queue)
-
-            for i, v in enumerate(current_batch):
-                want = alloc[i]
-                fill = min(want, v.ask_size)
-                total_cash += fill * (v.ask + v.fee)
-                total_cash -= max(want - fill, 0) * v.rebate
+        # Get optimal allocation for remaining shares
+        alloc, expected_cost = allocate(remaining, venue_list, λ_over, λ_under, θ_queue)
+        
+        # Execute the allocation
+        timestamp_filled = 0
+        for i, venue in enumerate(venue_list):
+            if i >= len(alloc):
+                break
+                
+            want = alloc[i]
+            if want <= 0:
+                continue
+                
+            # Fill what we can at this venue
+            fill = min(want, venue.ask_size, remaining)
+            if fill > 0:
+                # Pay for filled shares
+                total_cash += fill * (venue.ask + venue.fee)
                 total_filled += fill
                 remaining -= fill
+                timestamp_filled += fill
+                
+                # Get rebate for unfilled shares (if we posted more than available)
+                unfilled_posted = max(want - fill, 0)
+                if unfilled_posted > 0:
+                    total_cash -= unfilled_posted * venue.rebate
 
-            print(f" Filled {total_filled}/{ORDER_SIZE} so far")
-            current_batch.clear()
-
-            if total_filled >= ORDER_SIZE:
-                break
-
-        previous_ts = ts
-        current_batch.extend(venue_list)
+        print(f"Timestamp {ts} — Filled {timestamp_filled} shares, Total: {total_filled}/{ORDER_SIZE}, Remaining: {remaining}")
 
     return total_cash, total_filled
+
 
 def produce_final_json(best_params, optimized, baselines):
     savings = {
@@ -255,13 +256,25 @@ def produce_final_json(best_params, optimized, baselines):
 
     print(json.dumps(result, indent=2))
 
+    with open("result.json", "w") as f:
+        json.dump(result, f, indent=2)
 
 
 if __name__ == "__main__":
     snapshots_by_ts = load_all_snapshots()
+    
+    if not snapshots_by_ts:
+        print("No data loaded from Kafka. Make sure the producer is running and has sent data.")
+        exit(1)
 
+    print(f"Starting grid search with {len(snapshots_by_ts)} timestamps...")
     best_params, optimized = grid_search(snapshots_by_ts)
+    
+    if best_params is None:
+        print("Grid search failed to find valid parameters.")
+        exit(1)
 
+    print("Running baseline strategies...")
     best_ask_cash, best_ask_avg = baseline_best_ask(snapshots_by_ts)
     twap_cash, twap_avg = baseline_twap(snapshots_by_ts)
     vwap_cash, vwap_avg = baseline_vwap(snapshots_by_ts)
