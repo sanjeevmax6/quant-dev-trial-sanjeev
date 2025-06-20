@@ -1,3 +1,7 @@
 l1_day.csv
 venv/*
 __pycache__/*
+*.tfstate
+*.tfstate.*
+deployment/.terraform/*
+*.hcl
