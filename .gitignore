@@ -5,3 +5,4 @@ __pycache__/*
 *.tfstate.*
 deployment/.terraform/*
 *.hcl
+*.csv

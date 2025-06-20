@@ -43,7 +43,7 @@ resource "aws_instance" "quant_instance" {
   key_name               = aws_key_pair.deployer.key_name
   vpc_security_group_ids = [aws_security_group.quant_sg.id]
   
-  user_data = templatefile("${path.module}/scripts/bootstrap.sh", {
+  user_data = templatefile("${path.module}/bootstrap.sh", {
     csv_placeholder = data.local_file.csv_data.content
   })
 
