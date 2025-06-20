@@ -258,3 +258,6 @@ This will tear down all the resources gracefully
 
 > https://drive.google.com/file/d/1XJwavIivf9Izssaqtd0zfXDqKpJcLiCK/view?usp=sharing
 
+Quick note: I forgot to mention this in the video — since the dataset shouldn’t be public in the repo, I used aws provisioner to securely transfer the script from my local deployment/ directory to the EC2 instance's root directory. Then, inside the instance, the bootstrap.sh script copies it to the appropriate working directory during setup.
+
+
