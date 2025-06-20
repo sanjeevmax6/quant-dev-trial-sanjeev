@@ -36,10 +36,6 @@ cd /home/ubuntu
 git clone https://github.com/sanjeevmax6/quant-dev-trial-sanjeev.git
 sudo chown -R ubuntu:ubuntu quant-dev-trial-sanjeev
 
-cat << 'EOF' > /home/ubuntu/quant-dev-trial-sanjeev/l1_day.csv
-${csv_placeholder}
-EOF
-
 cd quant-dev-trial-sanjeev
 pip3 install -r requirements.txt
 
