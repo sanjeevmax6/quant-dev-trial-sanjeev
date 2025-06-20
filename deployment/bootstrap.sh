@@ -1,4 +1,5 @@
 #!/bin/bash
+exec > /home/ubuntu/bootstrap.log 2>&1
 set -e
 
 # Install required tools
@@ -31,11 +32,12 @@ sudo systemctl start docker
 
 sudo apt install -y python3 python3-pip
 
-pip3 install -r requirements.txt
-
 cd /home/ubuntu
 git clone https://github.com/sanjeevmax6/quant-dev-trial-sanjeev.git
 sudo chown -R ubuntu:ubuntu quant-dev-trial-sanjeev
+
+cd quant-dev-trial-sanjeev
+pip3 install -r requirements.txt
 
 echo "Bootstrap complete. SSH into the instance and run:"
 echo " cd ~/quant-dev-trial-sanjeev && docker compose up -d"
