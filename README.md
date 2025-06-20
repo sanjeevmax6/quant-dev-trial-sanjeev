@@ -164,6 +164,96 @@ ssh -i ~/.ssh/id_rsa ubuntu@<EC2_PUBLIC_IP>
 
 ---
 
+---
+
+## Alternate Deployment (Without Terraform)
+
+If you'd prefer or need to deploy manually without using Terraform, follow these steps:
+
+### Step 1: Launch EC2 Instance
+
+- Log in to your AWS Console.
+- Navigate to **EC2** and launch a new instance.
+- Recommended instance type: `t3.micro` or `t4g.micro` (ARM-compatible).
+- Choose an Ubuntu 20.04 or 22.04 AMI.
+- Make sure to allow inbound **SSH (port 22)** and **Docker/Kafka ports (e.g. 9092)** in the security group.
+- Add your key pair or create one to allow SSH access.
+
+### Step 2: SSH into EC2
+
+```bash
+ssh -i /path/to/your/key.pem ubuntu@<your-ec2-public-ip>
+```
+Replace `<your-ec2-public-ip>` with your actual EC2 public IP.
+
+---
+
+### Step 3: Clone the Repository
+
+```bash
+sudo apt update && sudo apt install git -y
+git clone https://github.com/<your-username>/quant-dev-trial-sanjeev.git
+cd quant-dev-trial-sanjeev
+```
+
+---
+
+### Step 4: Install requirements and packages
+
+```bash
+cd quant-dev-trial-sanjeev/deployment
+chmod +x bootstrap.sh
+bash bootstrap.sh
+```
+
+---
+
+### Step 5: Transfer `l1_day.csv` to EC2
+
+> Use `scp` to transfer it directly.
+
+From your local machine:
+
+```bash
+scp -i /path/to/your/key.pem ./l1_day.csv ubuntu@<your-ec2-public-ip>:~/quant-dev-trial-sanjeev/
+```
+
+---
+
+### Step 6: Start Docker
+
+Start Kafka + Zookeeper containers:
+
+```bash
+docker compose up -d
+```
+
+---
+
+### Step 6: Run the Pipeline
+
+1. Start the Kafka producer:
+```bash
+python3 kafka_producer.py
+```
+
+2. Then run the backtest:
+```bash
+python3 backtest.py
+```
+
+---
+
+## Cleanup
+Navigate to your local terminal's repo and do
+
+```bash
+terraform destroy
+```
+
+This will tear down all the resources gracefully
+
+
 ## Video Walkthrough
 
 > 
