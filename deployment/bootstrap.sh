@@ -29,9 +29,13 @@ sudo usermod -aG docker ubuntu
 sudo systemctl enable docker
 sudo systemctl start docker
 
+sudo apt install -y python3 python3-pip
+
+pip3 install -r requirements.txt
+
 cd /home/ubuntu
 git clone https://github.com/sanjeevmax6/quant-dev-trial-sanjeev.git
-chown -R ubuntu:ubuntu quant-dev-trial-sanjeev
+sudo chown -R ubuntu:ubuntu quant-dev-trial-sanjeev
 
 echo "Bootstrap complete. SSH into the instance and run:"
 echo " cd ~/quant-dev-trial-sanjeev && docker compose up -d"
