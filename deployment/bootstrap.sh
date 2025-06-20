@@ -12,7 +12,7 @@ sudo usermod -aG docker ubuntu
 
 # Clone your project repo
 cd /home/ubuntu
-git clone https://github.com/YOUR_USERNAME/quant-dev-trial-sanjeev.git
+git clone https://github.com/sanjeevmax6/quant-dev-trial-sanjeev.git
 cd quant-dev-trial-sanjeev
 
 # Install Python requirements
