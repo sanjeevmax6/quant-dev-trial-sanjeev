@@ -45,3 +45,34 @@ resource "aws_instance" "quant_instance" {
     Name = "QuantSORInstance"
   }
 }
+
+# Upload the CSV file
+resource "null_resource" "upload_csv" {
+  provisioner "file" {
+    source      = var.csv_file_path
+    destination = "/home/ubuntu/l1_day.csv"
+
+    connection {
+      type        = "ssh"
+      user        = "ubuntu"
+      host        = aws_instance.quant_instance.public_ip
+      private_key = file(var.private_key_path)
+    }
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo mv /home/ubuntu/l1_day.csv /home/ubuntu/quant-dev-trial-sanjeev/l1_day.csv",
+      "sudo chown ubuntu:ubuntu /home/ubuntu/quant-dev-trial-sanjeev/l1_day.csv"
+    ]
+
+    connection {
+      type        = "ssh"
+      user        = "ubuntu"
+      host        = aws_instance.quant_instance.public_ip
+      private_key = file(var.private_key_path)
+    }
+  }
+
+  depends_on = [aws_instance.quant_instance]
+}
