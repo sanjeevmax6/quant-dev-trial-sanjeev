@@ -26,7 +26,7 @@ The following structure guides the full backtesting and deployment setup:
 ```
 ---
 
-## ⚙️ Architecture Overview
+## Architecture Overview
 
 1. **Kafka & Zookeeper Setup**:  
    Docker Compose provisions two containers (`confluentinc/cp-zookeeper` and `cp-kafka`) that run locally or inside the EC2 instances.
@@ -100,11 +100,11 @@ ls ~/.ssh/id_rsa.pub || ssh-keygen -t rsa -b 4096
 ssh -i ~/.ssh/id_rsa ubuntu@<EC2_PUBLIC_IP>
 ```
 
-> 🕐 Wait 3–5 minutes after `terraform apply` to let bootstrapping complete.
+> Wait 3–5 minutes after `terraform apply` to let bootstrapping complete.
 
 ---
 
-## 🧪 Run the Full Pipeline
+## Run the Full Pipeline
 
 1. **Navigate into project folder**  
    ```bash
